@@ -2,27 +2,49 @@ package usecase
 
 import (
 	"BookService/internal/domain"
+	"BookService/internal/repository"
 	"errors"
 )
 
-type BookUsecase struct {
-	repository domain.BookRepository
+type bookUsecase struct {
+	bookRepo repository.BookRepositoryPG
 }
 
-func NewBookUsecase(repo domain.BookRepository) *BookUsecase {
-	return &BookUsecase{repository: repo}
+func NewBookUsecase(bookRepo *repository.BookRepositoryPG) BookUsecase {
+	return &bookUsecase{
+		bookRepo: bookRepo,
+	}
 }
 
-func (uc *BookUsecase) BorrowBook(id string) error {
-	book, err := uc.repository.GetByID(id)
+func (u *bookUsecase) GetBookByID(id string) (*domain.Book, error) {
+	book, err := u.bookRepo.GetByID(id)
 	if err != nil {
-		return err
+		return nil, errors.New("book not found")
 	}
+	return book, nil
+}
 
-	if book.Stock <= 0 {
-		return errors.New("book out of stock")
+func (u *bookUsecase) CreateBook(book *domain.Book) error {
+	if book.Title == "" {
+		return errors.New("book title cannot be empty")
 	}
+	return u.bookRepo.Create(book)
+}
 
-	book.Stock -= 1
-	return uc.repository.Update(book)
+func (u *bookUsecase) UpdateBook(book *domain.Book) error {
+	existingBook, err := u.bookRepo.GetByID(book.ID)
+	if err != nil {
+		return errors.New("book not found")
+	}
+	existingBook.Title = book.Title
+	existingBook.Stock = book.Stock
+	return u.bookRepo.Update(existingBook)
+}
+
+func (u *bookUsecase) DeleteBook(id string) error {
+	_, err := u.bookRepo.GetByID(id)
+	if err != nil {
+		return errors.New("book not found")
+	}
+	return u.bookRepo.Delete(id)
 }
